@@ -48,6 +48,7 @@ int main(int argc, char** argv)
             ("pool_size", "Size of persistent pool (in Bytes)", cxxopts::value<uint64_t>()->default_value(std::to_string(tree_opt.pool_size)))
             ("skip_load", "Skip the load phase", cxxopts::value<bool>()->default_value((opt.skip_load ? "true" : "false")))
             ("latency_sampling", "Sample latency of requests", cxxopts::value<float>()->default_value(std::to_string(opt.latency_sampling)))
+            ("par_load","Parallel loading", cxxopts::value<bool>()->default_value((opt.par_load ? "true" : "false")))
             ("mode","Benchmark mode",cxxopts::value<std::string>()->default_value("operation"))
             ("time","Time PiBench run in time-based mode",cxxopts::value<float>()->default_value(std::to_string(opt.time)))
             ("help", "Print help")
@@ -201,6 +202,10 @@ int main(int argc, char** argv)
         //Parse "false_access"
         if(result.count("false_access"))
             opt.false_access = result["false_access"].as<bool>();
+
+        // Parse "par_load"
+        if(result.count("par_load"))
+            opt.par_load = result["par_load"].as<bool>();
 
 
     }

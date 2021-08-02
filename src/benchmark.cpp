@@ -127,10 +127,10 @@ benchmark_t::~benchmark_t()
 
 void benchmark_t::load() noexcept
 {
-    uint64_t insert_per_thread = opt_.num_records / opt_.num_threads;
-
     if(opt_.skip_load)
     {
+        uint64_t insert_per_thread = opt_.num_records / opt_.num_threads;
+
         if(opt_.bm_mode == mode_t::Operation)
         {
             key_generator_->current_id_ = opt_.num_records + 1;
@@ -147,6 +147,23 @@ void benchmark_t::load() noexcept
         }
         return;
     }
+
+    float elapsed = 0.0;
+
+     if(opt_.par_load)
+         elapsed = load_multi_thread();
+     else
+         elapsed = load_single_thread();
+
+    std::cout << "Overview:"
+              << "\n"
+              << "\tLoad time: " << elapsed << " milliseconds" << std::endl;
+}
+
+
+float benchmark_t::load_single_thread() noexcept
+{
+    uint64_t insert_per_thread = opt_.num_records / opt_.num_threads;
 
     /// Generating tid prefix when running time based benchmark
     auto tid_generate = [insert_per_thread](uint64_t i, uint64_t num_threads){
@@ -173,11 +190,78 @@ void benchmark_t::load() noexcept
         assert(r);
     }
 
-    auto elapsed = sw.elapsed<std::chrono::milliseconds>();
+    return sw.elapsed<std::chrono::milliseconds>();
+}
 
-    std::cout << "Overview:"
-              << "\n"
-              << "\tLoad time: " << elapsed << " milliseconds" << std::endl;
+float benchmark_t::load_multi_thread() noexcept
+{
+    std::vector<uint64_t> insert_per_thread;
+    insert_per_thread.resize(opt_.num_threads);
+    for(int i=0;i<opt_.num_threads;++i)
+    {
+        insert_per_thread[i] = opt_.num_records / opt_.num_threads;
+    }
+    insert_per_thread[opt_.num_threads-1] += opt_.num_records % (int)(opt_.num_records / opt_.num_threads);
+
+    stopwatch_t sw;
+    float elapsed = 0.0;
+
+    #pragma omp parallel num_threads(opt_.num_threads)
+    {
+        auto tid = omp_get_thread_num();
+
+        if(opt_.bm_mode == mode_t::Operation)
+            key_generator_->current_id_ = insert_per_thread[0] * tid + 1;
+        else
+            key_generator_->current_id_ = 1;
+
+
+
+        #pragma omp barrier
+
+        #pragma omp single
+        {
+            sw.start();
+        }
+
+        if(opt_.bm_mode == mode_t::Operation)
+        {
+            for(int i=0 ; i<insert_per_thread[tid]; ++i)
+            {
+                auto key_ptr = key_generator_->next(true);
+
+                auto value_ptr = value_generator_.next();
+
+                auto r = tree_->insert(key_ptr,key_generator_->size(), value_ptr, opt_.value_size);
+                assert(r);
+            }
+        }
+        else
+        {
+            for(int i=0; i<insert_per_thread[tid]; ++i)
+            {
+                auto key_ptr = key_generator_->next(tid,0, true);
+
+                auto value_ptr = value_generator_.next();
+
+                auto r = tree_->insert(key_ptr,key_generator_->size(), value_ptr, opt_.value_size);
+                assert(r);
+            }
+        }
+
+        #pragma omp barrier
+
+        #pragma omp single
+        {
+            elapsed = sw.elapsed<std::chrono::milliseconds>();
+        }
+
+    }
+
+    if(opt_.bm_mode == mode_t::Operation)
+        key_generator_->current_id_ = opt_.num_records + 1;
+
+    return elapsed;
 }
 
 void benchmark_t::run() noexcept

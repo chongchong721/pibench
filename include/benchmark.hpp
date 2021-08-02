@@ -114,6 +114,9 @@ struct options_t
 
     /// Generate keys which are not in the index structure (used in false read/update)
     bool false_access = false;
+
+    /// Parallel loading flag
+    bool par_load = false;
 };
 
 /**
@@ -181,6 +184,9 @@ private:
     * @param values_out Pointer to store SCAN value
     */
     bool run_op(operation_t operation, const char * key_ptr, char * value_out, char * values_out);
+
+    float load_single_thread() noexcept;
+    float load_multi_thread() noexcept;
 
     /// Tree data structure being benchmarked.
     tree_api* tree_;
