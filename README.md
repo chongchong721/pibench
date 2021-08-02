@@ -116,6 +116,7 @@ Usage:
       --pool_size arg     Size of persistent pool (in Bytes) (default: 0)
       --skip_load             Skip the load phase
       --latency_sampling arg  Sample latency of requests (default: 0)
+      --par_load(T/F)     Parallel load (default: false)
       --help              Print help
 ```
 The tree data structure implemented as a shared library must follow the API defined in [`tree_api.hpp`](include/tree_api.hpp).
@@ -198,3 +199,15 @@ $ ./PiBench fptree.so -n 1000 -p 1000 -r 1 --skip_load=true --pool_path=/mnt/pme
 # Remove working copy
 rm /mnt/pmem1/tmp_pool
 ```
+
+# Changes from original PiBench
+### Features added
+1. Time-based benchmark  
+Specify benchmark mode by --mode and running time by --time  
+2. Parallel load  
+Build(insert) the index structure in parallel   
+3. Add a false access rate stat showing the percentage of false read/update
+### TODO
+- Guarantee false access in operation mode
+- Support any number of thread in time based mode
+- Add more useful stat info
