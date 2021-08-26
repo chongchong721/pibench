@@ -227,6 +227,7 @@ void benchmark_t::run() noexcept
     float elapsed = 0.0;
 
     std::discrete_distribution<bool> dis {opt_.negative_access_rate, 1-opt_.negative_access_rate};
+    std::bernoulli_distribution bernoulliDistribution(opt_.latency_sampling);
 
     // Start Benchmark
     // Operation based mode
@@ -272,7 +273,14 @@ void benchmark_t::run() noexcept
                     // TODO(Yuan Meng) Current way of specifying current_id cannot assure every key generated exists in the index tree
                     key_generator_->current_id_ = current_id + (inserts_per_thread * tid);
 
+                    bool flag_sampling[65536];
+
+                    uint8_t m = 0;
                     auto random_bool = std::bind(std::bernoulli_distribution(opt_.latency_sampling), std::knuth_b());
+                    for(uint32_t i =0; i < 65536 ;++i){
+                        flag_sampling[i] = random_bool();
+                    }
+
 
                     #pragma omp barrier
 
@@ -290,8 +298,9 @@ void benchmark_t::run() noexcept
                         // Generate random scrambled key
                         auto key_ptr = key_generator_->next( false, op == operation_t::INSERT ? true : false);
 
-                        auto measure_latency = random_bool();
-                        if(measure_latency)
+                        //auto measure_latency = opt_.latency_sampling==0.0 ? false : random_bool();
+
+                        if(flag_sampling[m])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
@@ -299,11 +308,12 @@ void benchmark_t::run() noexcept
                         if(!run_op(op,key_ptr,value_out,values_out))
                             ++local_stats[tid].operation_count_F;
 
-                        if(measure_latency)
+                        if(flag_sampling[m])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
                         ++local_stats[tid].operation_count;
+                        ++m;
                     }
 
                     // Get elapsed time and signal monitor thread to finish.
@@ -373,7 +383,6 @@ void benchmark_t::run() noexcept
 
                         // Generate random operation
                         auto op = op_generator_.next();
-
                         const char* key_ptr;
 
                         // Generate random scrambled key

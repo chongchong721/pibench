@@ -1,6 +1,8 @@
 #ifndef __OPERATION_GENERATOR_HPP__
 #define __OPERATION_GENERATOR_HPP__
 
+#include "uniform_random.hpp"
+
 #include <cstdint>
 #include <random>
 #include <array>
@@ -46,7 +48,7 @@ public:
      */
     operation_t next()
     {
-        return ops_[dist_(gen_) & 0xff];
+        return ops_[uni_dist.next_uint32() & 0xff];
     }
 
     /**
@@ -73,10 +75,9 @@ private:
 
     /// Engine used for generation random numbers.
     static thread_local std::default_random_engine gen_;
-
     /// Weighted distribution for generating random numbers.
     std::uniform_int_distribution<uint32_t> dist_;
-
+    foedus::assorted::UniformRandom uni_dist;
     std::array<operation_t, 256> ops_;
 };
 } // namespace PiBench

@@ -3,6 +3,7 @@
 
 #include "selfsimilar_int_distribution.hpp"
 #include "zipfian_int_distribution.hpp"
+#include "uniform_random.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -158,18 +159,22 @@ public:
           key_generator_t(N, size, thread_num, tid_prefix, prefix) {}
 
 protected:
+    void set_seed(uint64_t seed){
+        uni_dist.set_current_seed(seed);
+    }
+
     virtual uint64_t next_id() override
     {
-        return dist_(generator_);
+        return uni_dist.uniform_within((uint64_t)1,current_id_ - 1);
     }
 
     virtual uint64_t next_id(uint64_t upper_bound) override
     {
-        std::uniform_int_distribution<uint64_t> tmp_dist(1,upper_bound);
-        return tmp_dist(generator_);
+        return uni_dist.uniform_within((uint64_t)1,upper_bound);
     }
 
 private:
+    foedus::assorted::UniformRandom uni_dist;
     std::uniform_int_distribution<uint64_t> dist_;
 };
 
