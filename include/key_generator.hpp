@@ -98,11 +98,7 @@ public:
      *
      * @param seed
      */
-    static void set_seed(uint32_t seed)
-    {
-        seed_ = seed;
-        generator_.seed(seed_);
-    }
+    virtual void set_seed(uint64_t seed) = 0;
 
     /**
      * @brief Get the seed object.
@@ -117,6 +113,10 @@ public:
 
     /// Storing the number of inserts with different thread ID (used as current ID)
     uint64_t* thread_stat;
+
+    static void set_seed_(uint64_t seed){
+        seed_ = seed;
+    }
 
 protected:
     virtual uint64_t next_id() = 0;
@@ -155,26 +155,27 @@ class uniform_key_generator_t final : public key_generator_t
 {
 public:
     uniform_key_generator_t(size_t N, size_t size, uint16_t thread_num, bool tid_prefix, const std::string& prefix = "")
-        : dist_(1, N),
+        :
           key_generator_t(N, size, thread_num, tid_prefix, prefix) {}
 
 protected:
-    void set_seed(uint64_t seed){
+    virtual void set_seed(uint64_t seed) override {
+        set_seed_(seed);
         uni_dist.set_current_seed(seed);
     }
 
     virtual uint64_t next_id() override
     {
-        return uni_dist.uniform_within((uint64_t)1,current_id_ - 1);
+        return uni_dist.uniform_within_64(1,current_id_ - 1);
     }
 
     virtual uint64_t next_id(uint64_t upper_bound) override
     {
-        return uni_dist.uniform_within((uint64_t)1,upper_bound);
+        return uni_dist.uniform_within_64(1,upper_bound);
     }
 
 private:
-    foedus::assorted::UniformRandom uni_dist;
+    static thread_local foedus::assorted::UniformRandom uni_dist;
     std::uniform_int_distribution<uint64_t> dist_;
 };
 
@@ -186,6 +187,11 @@ public:
           key_generator_t(N, size, thread_num, tid_prefix, prefix),
           skew_(skew)
     {
+    }
+
+    virtual void set_seed(uint64_t seed) override{
+        set_seed_(seed);
+        generator_.seed(seed);
     }
 
     virtual uint64_t next_id() override
@@ -212,6 +218,11 @@ public:
           key_generator_t(N, size, thread_num, tid_prefix, prefix),
           skew_(skew)
     {
+    }
+
+    virtual void set_seed(uint64_t seed) override{
+        set_seed_(seed);
+        generator_.seed(seed);
     }
 
     virtual uint64_t next_id() override

@@ -3,7 +3,7 @@
 
 namespace PiBench
 {
-
+thread_local foedus::assorted::UniformRandom uniform_key_generator_t::uni_dist;
 thread_local std::default_random_engine key_generator_t::generator_;
 thread_local uint32_t key_generator_t::seed_;
 thread_local char key_generator_t::buf_[KEY_MAX];

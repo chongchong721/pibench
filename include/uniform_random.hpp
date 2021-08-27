@@ -39,7 +39,7 @@ class UniformRandom {
    * In TPCC terminology, from=x, to=y.
    * NOTE both from and to are _inclusive_.
    */
-  uint32_t uniform_within(uint32_t from, uint32_t to) {
+  uint32_t uniform_within_32(uint32_t from, uint32_t to) {
     //ASSERT_ND(from <= to);
     if (from == to) {
       return from;
@@ -47,7 +47,7 @@ class UniformRandom {
     return from + (next_uint32() % (to - from + 1));
   }
 
-  uint64_t uniform_within(uint64_t from,uint64_t to){
+  uint64_t uniform_within_64(uint64_t from,uint64_t to){
       //ASSERT_ND(from <= to);
       if(from==to){
           return from;
@@ -61,7 +61,7 @@ class UniformRandom {
    */
   uint32_t uniform_within_except(uint32_t from, uint32_t to, uint32_t except) {
     while (true) {
-      uint32_t val = uniform_within(from, to);
+      uint32_t val = uniform_within_32(from, to);
       if (val != except) {
         return val;
       }
@@ -76,7 +76,7 @@ class UniformRandom {
    */
   uint32_t non_uniform_within(uint32_t A, uint32_t from, uint32_t to) {
     uint32_t C = get_c(A);
-    return  (((uniform_within(0, A) | uniform_within(from, to)) + C) % (to - from + 1)) + from;
+    return  (((uniform_within_32(0, A) | uniform_within_32(from, to)) + C) % (to - from + 1)) + from;
   }
 
   uint64_t get_current_seed() const {

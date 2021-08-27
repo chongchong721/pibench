@@ -59,7 +59,7 @@ public:
     static void set_seed(uint32_t seed)
     {
         seed_ = seed;
-        gen_.seed(seed_);
+        uni_dist.set_current_seed(seed_);
     }
 
     /**
@@ -73,11 +73,8 @@ private:
     /// Seed used for generating random numbers.
     static thread_local uint32_t seed_;
 
-    /// Engine used for generation random numbers.
-    static thread_local std::default_random_engine gen_;
     /// Weighted distribution for generating random numbers.
-    std::uniform_int_distribution<uint32_t> dist_;
-    foedus::assorted::UniformRandom uni_dist;
+    static thread_local foedus::assorted::UniformRandom uni_dist;
     std::array<operation_t, 256> ops_;
 };
 } // namespace PiBench

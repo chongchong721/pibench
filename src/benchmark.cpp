@@ -226,8 +226,6 @@ void benchmark_t::run() noexcept
     stopwatch_t stopwatch;
     float elapsed = 0.0;
 
-    std::discrete_distribution<bool> dis {opt_.negative_access_rate, 1-opt_.negative_access_rate};
-    std::bernoulli_distribution bernoulliDistribution(opt_.latency_sampling);
 
     // Start Benchmark
     // Operation based mode
@@ -273,12 +271,18 @@ void benchmark_t::run() noexcept
                     // TODO(Yuan Meng) Current way of specifying current_id cannot assure every key generated exists in the index tree
                     key_generator_->current_id_ = current_id + (inserts_per_thread * tid);
 
-                    bool flag_sampling[65536];
+                    bool flag_sampling[1024];
+                    bool flag_neg_access[1024];
 
-                    uint8_t m = 0;
-                    auto random_bool = std::bind(std::bernoulli_distribution(opt_.latency_sampling), std::knuth_b());
-                    for(uint32_t i =0; i < 65536 ;++i){
-                        flag_sampling[i] = random_bool();
+                    foedus::assorted::UniformRandom uniformRandom;
+                    uniformRandom.set_current_seed(opt_.rnd_seed * (tid + 1));
+                    uint32_t  *index = new uint32_t;
+
+                    auto random_bool_sampling = std::bind(std::bernoulli_distribution(opt_.latency_sampling), std::knuth_b());
+                    auto random_bool_neg_access = std::bind(std::bernoulli_distribution(opt_.negative_access_rate), std::knuth_b());
+                    for(uint32_t i =0; i < 1024 ;++i){
+                        flag_sampling[i] = random_bool_sampling();
+                        flag_neg_access[i] = random_bool_neg_access();
                     }
 
 
@@ -292,15 +296,22 @@ void benchmark_t::run() noexcept
                     #pragma omp for schedule(static)
                     for (uint64_t i = 0; i < opt_.num_ops; ++i)
                     {
+                        *index = uniformRandom.uniform_within_32(0,1023);
+
                         // Generate random operation
                         auto op = op_generator_.next();
 
+                        const char* key_ptr;
+
                         // Generate random scrambled key
-                        auto key_ptr = key_generator_->next( false, op == operation_t::INSERT ? true : false);
+                        if(op == operation_t::INSERT)
+                            key_ptr = key_generator_->next(false, true);
+                        else if(opt_.negative_access && (op == operation_t :: READ || op == operation_t::UPDATE))
+                            key_ptr = key_generator_->next( flag_neg_access[*index], false);
+                        else
+                            key_ptr = key_generator_->next(false, false);
 
-                        //auto measure_latency = opt_.latency_sampling==0.0 ? false : random_bool();
-
-                        if(flag_sampling[m])
+                        if(flag_sampling[*index])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
@@ -308,12 +319,11 @@ void benchmark_t::run() noexcept
                         if(!run_op(op,key_ptr,value_out,values_out))
                             ++local_stats[tid].operation_count_F;
 
-                        if(flag_sampling[m])
+                        if(flag_sampling[*index])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
                         ++local_stats[tid].operation_count;
-                        ++m;
                     }
 
                     // Get elapsed time and signal monitor thread to finish.
@@ -333,7 +343,7 @@ void benchmark_t::run() noexcept
     {
 
         omp_set_nested(true);
-        #pragma omp parallel sections num_threads(2) default(none) shared(finished,local_stats,global_stats,elapsed,values_out,std::cout,stopwatch,dis)
+        #pragma omp parallel sections num_threads(2) default(none) shared(finished,local_stats,global_stats,elapsed,values_out,std::cout,stopwatch)
         {
             #pragma omp section // Monitor & timer thread
             {
@@ -364,12 +374,22 @@ void benchmark_t::run() noexcept
 
                     key_generator_->set_seed(opt_.rnd_seed * (tid + 1));
 
-                    std::default_random_engine engine(time(0) * (tid+1));
-
                     // How many inserts are within this thread ID's range
                     key_generator_->current_id_ = key_generator_->thread_stat[tid];
 
-                    auto random_bool = std::bind(std::bernoulli_distribution(opt_.latency_sampling), std::knuth_b());
+                    bool flag_sampling[1024];
+                    bool flag_neg_access[1024];
+
+                    foedus::assorted::UniformRandom uniformRandom;
+                    uniformRandom.set_current_seed(opt_.rnd_seed * (tid + 1));
+                    uint32_t  *index = new uint32_t;
+
+                    auto random_bool_sampling = std::bind(std::bernoulli_distribution(opt_.latency_sampling), std::knuth_b());
+                    auto random_bool_neg_access = std::bind(std::bernoulli_distribution(opt_.negative_access_rate), std::knuth_b());
+                    for(uint32_t i =0; i < 1024 ;++i){
+                        flag_sampling[i] = random_bool_sampling();
+                        flag_neg_access[i] = random_bool_neg_access();
+                    }
 
                     #pragma omp barrier
 
@@ -380,6 +400,7 @@ void benchmark_t::run() noexcept
 
                     while(!finished.load())
                     {
+                        *index = uniformRandom.uniform_within_32(0,1023);
 
                         // Generate random operation
                         auto op = op_generator_.next();
@@ -388,21 +409,15 @@ void benchmark_t::run() noexcept
                         // Generate random scrambled key
                         if(op == operation_t::INSERT)
                             key_ptr = key_generator_->next(tid, false, true);
-                        else if(op == operation_t::READ || op == operation_t::UPDATE)
+                        else if( opt_.negative_access && (op == operation_t::READ || op == operation_t::UPDATE))
                             // Generate some unrepeated key for READ & UPDATE (if negative_access == true)
                             // TODO: Make sure to generate a negative access key(dividing next() to two parts)
-                        {
-                            if(!opt_.negative_access)
-                                key_ptr = key_generator_->next(tid,false,false);
-                            else
-                                key_ptr = dis(engine) ? key_generator_->next(tid,false,false) : key_generator_->next(tid,true, false);
-                        }
+                            key_ptr = key_generator_->next(tid,flag_neg_access[*index],false);
                         else
                             key_ptr = key_generator_->next(tid, false, false);
 
-                        auto measure_latency = random_bool();
 
-                        if(measure_latency)
+                        if(flag_sampling[*index])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
@@ -410,7 +425,7 @@ void benchmark_t::run() noexcept
                         if(!run_op(op,key_ptr,value_out,values_out))
                             ++local_stats[tid].operation_count_F;
 
-                        if(measure_latency)
+                        if(flag_sampling[*index])
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
