@@ -296,7 +296,8 @@ void benchmark_t::run() noexcept
                     #pragma omp for schedule(static)
                     for (uint64_t i = 0; i < opt_.num_ops; ++i)
                     {
-                        *index = uniformRandom.uniform_within_32(0,1023);
+                        // Random index in generating negative access and sampling
+                        *index = uniformRandom.next_uint32() & 0x3FF;
 
                         // Generate random operation
                         auto op = op_generator_.next();
@@ -343,7 +344,7 @@ void benchmark_t::run() noexcept
     {
 
         omp_set_nested(true);
-        #pragma omp parallel sections num_threads(2) default(none) shared(finished,local_stats,global_stats,elapsed,values_out,std::cout,stopwatch)
+        #pragma omp parallel sections num_threads(2) default(none) shared(finished,local_stats,global_stats,elapsed,values_out,stopwatch)
         {
             #pragma omp section // Monitor & timer thread
             {
@@ -400,7 +401,7 @@ void benchmark_t::run() noexcept
 
                     while(!finished.load())
                     {
-                        *index = uniformRandom.uniform_within_32(0,1023);
+                        *index = uniformRandom.next_uint32() & 0x3FF;
 
                         // Generate random operation
                         auto op = op_generator_.next();

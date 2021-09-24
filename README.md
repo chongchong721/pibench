@@ -103,7 +103,7 @@ Usage:
   -u, --update_ratio arg  Ratio of update operations (default: 0)
   -d, --remove_ratio arg  Ratio of remove operations (default: 0)
   -s, --scan_ratio arg    Ratio of scan operations (default: 0)
-      --scan_size arg     Number of records to be scanned. (default: 100)
+      --scan_size arg     Number of records to be scanned. (default: 100)   
       --negative_access(T/F)  Flag for generating unrepeated keys (default:false)
       --sampling_ms arg   Sampling window in milliseconds (default: 1000)
       --distribution arg  Key distribution to use (default: UNIFORM)
