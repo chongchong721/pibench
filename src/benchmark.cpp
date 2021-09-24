@@ -182,6 +182,11 @@ void benchmark_t::load() noexcept
 
 void benchmark_t::run() noexcept
 {
+    std::atomic_int perf_id;
+    std::atomic_int run_id;
+    perf_id.store(0);
+    run_id.store(0);
+
     std::vector<stats_t> global_stats;
 
     std::vector<stats_t> local_stats(opt_.num_threads);
@@ -240,7 +245,7 @@ void benchmark_t::run() noexcept
         uint64_t current_id = key_generator_->current_id_;
 
         omp_set_nested(true);
-        #pragma omp parallel sections num_threads(2)
+        #pragma omp parallel sections num_threads(3)
         {
             #pragma omp section // Monitor thread
             {
@@ -257,11 +262,31 @@ void benchmark_t::run() noexcept
                 }
             }
 
+            #pragma omp section
+            {
+                perf_id.store(gettid());
+                while(run_id.load() == 0);
+                std::string str = std::to_string(run_id.load());
+                std::cout << "Running tid from perf is " << run_id.load() << std::endl;
+                std::string cmd = "perf record -g -F 97 --tid=" + str + " >/dev/null &";
+                system(cmd.c_str());
+                while(!finished.load()){
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                }
+            }
+
             #pragma omp section // Worker threads
             {
 
                 #pragma omp parallel num_threads(opt_.num_threads)
                 {
+
+                    #pragma omp single nowait
+                    {
+                        run_id.store(gettid());
+                        while(perf_id.load() == 0);
+                    }
+
                     auto tid = omp_get_thread_num();
 
                     // Initialize random seed for each thread
@@ -332,6 +357,8 @@ void benchmark_t::run() noexcept
                     {
                         elapsed = stopwatch.elapsed<std::chrono::milliseconds>();
                         finished.store(true);
+//                        std::string cmd = "kill -2 " + std::to_string(perf_id.load());
+//                        system(cmd.c_str());
                     }
                 }
             }
