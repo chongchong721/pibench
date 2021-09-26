@@ -287,6 +287,8 @@ void benchmark_t::run() noexcept
                         while(perf_id.load() == 0);
                     }
 
+                    uint64_t count = 0;
+
                     auto tid = omp_get_thread_num();
 
                     // Initialize random seed for each thread
@@ -343,7 +345,13 @@ void benchmark_t::run() noexcept
                         }
 
                         if(!run_op(op,key_ptr,value_out,values_out))
+                        {
                             ++local_stats[tid].operation_count_F;
+                            ++count;
+                        }
+                        else
+                            ++count;
+
 
                         if(flag_sampling[*index])
                         {
@@ -360,6 +368,7 @@ void benchmark_t::run() noexcept
 //                        std::string cmd = "kill -2 " + std::to_string(perf_id.load());
 //                        system(cmd.c_str());
                     }
+                    std::cout<< "thread" << tid << ". Count" << count << std::endl;
                 }
             }
         }
