@@ -1,6 +1,6 @@
 #include "benchmark.hpp"
 #include "utils.hpp"
-#include "System.hpp"
+//#include "System.hpp"
 
 #include <stdlib.h>
 #include <algorithm>
@@ -270,7 +270,7 @@ void benchmark_t::run() noexcept
                 while(run_id.load() == 0);
                 std::string str = std::to_string(run_id.load());
                 //std::cout << "Running tid from perf is " << run_id.load() << std::endl;
-                std::string cmd = "perf record -g -F 97 --tid=" + str + " >/dev/null &";
+                std::string cmd = "perf record -e instructions -g -F 97 --tid=" + str + " >/dev/null &";
                 system(cmd.c_str()); // Running a shell command in a forked thread
                 while(!finished.load()){
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -282,12 +282,6 @@ void benchmark_t::run() noexcept
 
                 #pragma omp parallel num_threads(opt_.num_threads)
                 {
-
-                    #pragma omp single nowait
-                    {
-                        run_id.store(gettid());
-                        while(perf_id.load() == 0);
-                    }
 
                     uint64_t count = 0;
 
@@ -319,6 +313,12 @@ void benchmark_t::run() noexcept
 
                     #pragma omp single nowait
                     {
+                        run_id.store(gettid());
+                        while(perf_id.load() == 0);
+                    }
+
+                    #pragma omp single nowait
+                    {
                         stopwatch.start();
                     }
 
@@ -329,10 +329,11 @@ void benchmark_t::run() noexcept
                         *index = uniformRandom.next_uint32() & 0x3FF;
 
                         // Generate random operation
-                        auto op = op_generator_.next();
+                        //auto op = op_generator_.next();
+                        auto op = operation_t::READ;
 
                         const char* key_ptr;
-                        char * char_tmp;
+                        char char_tmp[128];
                         // Generate random scrambled key
 //                        if(op == operation_t::INSERT)
 //                            key_ptr = key_generator_->next(false, true);
@@ -361,12 +362,7 @@ void benchmark_t::run() noexcept
                         }
 
                         if(!run_op(op,key_ptr,value_out,values_out))
-                        {
                             ++local_stats[tid].operation_count_F;
-                            ++count;
-                        }
-                        else
-                            ++count;
 
 
                         if(flag_sampling[*index])
@@ -381,10 +377,9 @@ void benchmark_t::run() noexcept
                     {
                         elapsed = stopwatch.elapsed<std::chrono::milliseconds>();
                         finished.store(true);
-//                        std::string cmd = "kill -2 " + std::to_string(perf_id.load());
-//                        system(cmd.c_str());
+                        std::string cmd = "kill -2 " + std::to_string(perf_id.load());
+                        system(cmd.c_str());
                     }
-                    std::cout<< "thread" << tid << ". Count" << count << std::endl;
                 }
             }
         }
