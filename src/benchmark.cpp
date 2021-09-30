@@ -1,6 +1,8 @@
 #include "benchmark.hpp"
 #include "utils.hpp"
+#include "System.hpp"
 
+#include <stdlib.h>
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -267,9 +269,9 @@ void benchmark_t::run() noexcept
                 perf_id.store(gettid());
                 while(run_id.load() == 0);
                 std::string str = std::to_string(run_id.load());
-                std::cout << "Running tid from perf is " << run_id.load() << std::endl;
+                //std::cout << "Running tid from perf is " << run_id.load() << std::endl;
                 std::string cmd = "perf record -g -F 97 --tid=" + str + " >/dev/null &";
-                system(cmd.c_str());
+                system(cmd.c_str()); // Running a shell command in a forked thread
                 while(!finished.load()){
                     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                 }
@@ -330,14 +332,28 @@ void benchmark_t::run() noexcept
                         auto op = op_generator_.next();
 
                         const char* key_ptr;
+                        char * char_tmp;
+                        // Generate random scrambled key
+//                        if(op == operation_t::INSERT)
+//                            key_ptr = key_generator_->next(false, true);
+//                        else if(opt_.negative_access && (op == operation_t :: READ || op == operation_t::UPDATE))
+//                            key_ptr = key_generator_->next( flag_neg_access[*index], false);
+//                        else
+//                            key_ptr = key_generator_->next(false, false);
+
 
                         // Generate random scrambled key
                         if(op == operation_t::INSERT)
                             key_ptr = key_generator_->next(false, true);
                         else if(opt_.negative_access && (op == operation_t :: READ || op == operation_t::UPDATE))
                             key_ptr = key_generator_->next( flag_neg_access[*index], false);
-                        else
-                            key_ptr = key_generator_->next(false, false);
+                        else // No key gen overhead
+                        {
+                            uint64_t tmp = utils::multiplicative_hash<uint64_t>(i);
+                            memcpy(char_tmp, &tmp ,8);
+                            key_ptr = char_tmp;
+                        }
+
 
                         if(flag_sampling[*index])
                         {
