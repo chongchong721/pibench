@@ -238,8 +238,6 @@ void benchmark_t::run() noexcept
     // Operation based mode
     if(opt_.bm_mode == mode_t::Operation)
     {
-
-
         // The amount of inserts expected to be done by each thread + some play room.
         uint64_t inserts_per_thread = 10 + (opt_.num_ops * opt_.insert_ratio) / opt_.num_threads;
 
@@ -264,18 +262,18 @@ void benchmark_t::run() noexcept
                 }
             }
 
-            #pragma omp section
-            {
-                perf_id.store(gettid());
-                while(run_id.load() == 0);
-                std::string str = std::to_string(run_id.load());
-                //std::cout << "Running tid from perf is " << run_id.load() << std::endl;
-                std::string cmd = "perf record -e instructions -g -F 97 --tid=" + str + " >/dev/null &";
-                system(cmd.c_str()); // Running a shell command in a forked thread
-                while(!finished.load()){
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-                }
-            }
+//            #pragma omp section
+//            {
+//                perf_id.store(gettid());
+//                while(run_id.load() == 0);
+//                std::string str = std::to_string(run_id.load());
+//                //std::cout << "Running tid from perf is " << run_id.load() << std::endl;
+//                std::string cmd = "perf record -e instructions -g -F 97 --tid=" + str + " >/dev/null &";
+//                system(cmd.c_str()); // Running a shell command in a forked thread
+//                while(!finished.load()){
+//                    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+//                }
+//            }
 
             #pragma omp section // Worker threads
             {
@@ -314,7 +312,8 @@ void benchmark_t::run() noexcept
                     #pragma omp single nowait
                     {
                         run_id.store(gettid());
-                        while(perf_id.load() == 0);
+                        //while(perf_id.load() == 0);
+                        std::cout << "thread " << run_id.load() << "-Run phase start" << std::endl;
                     }
 
                     #pragma omp single nowait
@@ -326,7 +325,8 @@ void benchmark_t::run() noexcept
                     for (uint64_t i = 0; i < opt_.num_ops; ++i)
                     {
                         // Random index in generating negative access and sampling
-                        *index = uniformRandom.next_uint32() & 0x3FF;
+                        //*index = uniformRandom.next_uint32() & 0x3FF;
+                        *index = 0;
 
                         // Generate random operation
                         //auto op = op_generator_.next();
@@ -377,8 +377,6 @@ void benchmark_t::run() noexcept
                     {
                         elapsed = stopwatch.elapsed<std::chrono::milliseconds>();
                         finished.store(true);
-                        std::string cmd = "kill -2 " + std::to_string(perf_id.load());
-                        system(cmd.c_str());
                     }
                 }
             }
