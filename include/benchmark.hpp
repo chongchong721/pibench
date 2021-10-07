@@ -181,7 +181,7 @@ private:
     * @param value_out Pointer to store Read value
     * @param values_out Pointer to store SCAN value
     */
-    bool run_op(operation_t operation, const char * key_ptr, char * value_out, char * values_out);
+    bool run_op(operation_t operation, const char * key_ptr, char * value_out, char * values_out, bool isRunPhase);
 
     /// Tree data structure being benchmarked.
     tree_api* tree_;

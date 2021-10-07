@@ -344,28 +344,31 @@ void benchmark_t::run() noexcept
 
 
                         // Generate random scrambled key
-                        if(op == operation_t::INSERT)
-                            key_ptr = key_generator_->next(false, true);
-                        else if(opt_.negative_access && (op == operation_t :: READ || op == operation_t::UPDATE))
-                            key_ptr = key_generator_->next( flag_neg_access[*index], false);
-                        else // No key gen overhead
-                        {
-                            uint64_t tmp = utils::multiplicative_hash<uint64_t>(i);
-                            memcpy(char_tmp, &tmp ,8);
-                            key_ptr = char_tmp;
-                        }
+//                        if(op == operation_t::INSERT)
+//                            key_ptr = key_generator_->next(false, true);
+//                        else if(opt_.negative_access && (op == operation_t :: READ || op == operation_t::UPDATE))
+//                            key_ptr = key_generator_->next( flag_neg_access[*index], false);
+//                        else // No key gen overhead
+//                        {
+//                            uint64_t tmp = utils::multiplicative_hash<uint64_t>(i);
+//                            memcpy(char_tmp, &tmp ,8);
+//                            key_ptr = char_tmp;
+//                        }
+                        uint64_t tmp = utils::multiplicative_hash<uint64_t>(i);
+                        memcpy(char_tmp, &tmp ,8);
+                        key_ptr = char_tmp;
 
 
-                        if(flag_sampling[*index])
+                        if(opt_.latency_sampling!=0 && flag_sampling[*index] )
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
 
-                        if(!run_op(op,key_ptr,value_out,values_out))
+                        if(!run_op(op,key_ptr,value_out,values_out, true))
                             ++local_stats[tid].operation_count_F;
 
 
-                        if(flag_sampling[*index])
+                        if(opt_.latency_sampling!=0 && flag_sampling[*index] )
                         {
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
@@ -437,6 +440,8 @@ void benchmark_t::run() noexcept
                         flag_neg_access[i] = random_bool_neg_access();
                     }
 
+                    std::cout << "Ready to start" << std::endl;
+
                     #pragma omp barrier
 
                     #pragma single nowait
@@ -446,10 +451,12 @@ void benchmark_t::run() noexcept
 
                     while(!finished.load())
                     {
-                        *index = uniformRandom.next_uint32() & 0x3FF;
+                        //*index = uniformRandom.next_uint32() & 0x3FF;
+                        *index = 0;
 
                         // Generate random operation
-                        auto op = op_generator_.next();
+                        //auto op = op_generator_.next();
+                        auto op = operation_t::READ;
                         const char* key_ptr;
 
                         // Generate random scrambled key
@@ -468,7 +475,7 @@ void benchmark_t::run() noexcept
                             local_stats[tid].times.push_back(std::chrono::high_resolution_clock::now());
                         }
 
-                        if(!run_op(op,key_ptr,value_out,values_out))
+                        if(!run_op(op,key_ptr,value_out,values_out, true))
                             ++local_stats[tid].operation_count_F;
 
                         if(flag_sampling[*index])
@@ -559,7 +566,7 @@ void benchmark_t::run() noexcept
     }
 }
 
-bool benchmark_t::run_op(operation_t operation, const char *key_ptr, char *value_out, char *values_out)
+bool benchmark_t::run_op(operation_t operation, const char *key_ptr, char *value_out, char *values_out, bool isRunPhase)
 {
     bool r;
     switch (operation)
@@ -573,6 +580,10 @@ bool benchmark_t::run_op(operation_t operation, const char *key_ptr, char *value
 
         case operation_t::INSERT:
         {
+            if(isRunPhase){
+                std::cout << "Run phase" << std::endl;
+                exit(1);
+            }
             // Generate random value
             auto value_ptr = value_generator_.next();
             r = tree_->insert(key_ptr, key_generator_->size(), value_ptr, opt_.value_size);
