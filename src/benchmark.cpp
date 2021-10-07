@@ -440,7 +440,6 @@ void benchmark_t::run() noexcept
                         flag_neg_access[i] = random_bool_neg_access();
                     }
 
-                    std::cout << "Ready to start" << std::endl;
 
                     #pragma omp barrier
 
