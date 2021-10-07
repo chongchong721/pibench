@@ -451,12 +451,10 @@ void benchmark_t::run() noexcept
 
                     while(!finished.load())
                     {
-                        //*index = uniformRandom.next_uint32() & 0x3FF;
-                        *index = 0;
+                        *index = uniformRandom.next_uint32() & 0x3FF;
 
                         // Generate random operation
-                        //auto op = op_generator_.next();
-                        auto op = operation_t::READ;
+                        auto op = op_generator_.next();
                         const char* key_ptr;
 
                         // Generate random scrambled key
